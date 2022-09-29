@@ -30,22 +30,46 @@ weather_df =
 weather_df
 ```
 
+#Scatterplot
+
+miniminum temperature = x-axis
+maximum temperature = y-axis
+
+aes() = defining aesthetic mapping
+- telling R what to put on x axis by putting `x =` and `y =`
 ```{r}
 ggplot(weather_df, aes(x = tmin, y = tmax))
 ```
 
+Need to add geometry to the scatterplot above to get an output
 ```{r}
 ggplot(weather_df, aes(x = tmin, y = tmax)) + 
   geom_point()
-
 ```
+Warning: Removed 15 rows containing missing values (geom_point)
+- being reminded by R that there were missing values and they were not included when the graph was created
+
+`ggplot`
+Can use ` %>% `
+- This is useful if you want to perform a few data processing steps (e.g. mutating, filtering, dropping, etc.)
 
 ```{r}
 weather_df %>%
   ggplot(aes(x = tmin, y = tmax)) + 
   geom_point()
+
+weather_df %>% 
+  drop_na() %>% 
+  filter (name == "CentralPark_NY") %>% 
+  ggplot(aes(x=tmin, y=tmax)) + geom_point()
 ```
 
+
+Same plot but different
+weather_scatterplot %>% 
+  weather_df %>% 
+  drop_na() %>% 
+  ggplot(aes(x=tmin, y=tmax)) #base figure without any geometry imposed on it
 ```{r}
 plot_weather = 
   weather_df %>%
@@ -54,16 +78,31 @@ plot_weather =
 plot_weather + geom_point()
 ```
 
+Adding color to distinguish different variables 
 ```{r}
 ggplot(weather_df, aes(x = tmin, y = tmax)) + 
-  geom_point(aes(color = name))
+  geom_point(aes(color = name)) #name is variable 
 ```
+Can define aesthetic mapping for specific geometries
 
 ```{r}
 ggplot(weather_df, aes(x = tmin, y = tmax)) + 
   geom_point(aes(color = name), alpha = .5) +
   geom_smooth(se = FALSE)
 ```
+Different geometries can be stacked and be assigned their own aesthetic
+
+`geom_smooth()` = takes all x and y data and runs a line/curve through dataset
+- used to describe association
+- useful in parts of exploratory association (e.g. is this a linear association? is there an association I care about?)
+
+```{r}
+ggplot(weather_df, aes(x = tmin, y = tmax, color = name))+
+  geom_point() +
+  geom_smooth()
+```
+By adding the aesthetic to the first line (within `ggplot`), the geometries are applied to the entire dataset
+- therefore, there will be three lines instead of one (the aesthetic is only within `geom_smooth()`)
 
 ```{r}
 ggplot(weather_df, aes(x = tmin, y = tmax, color = name)) + 
@@ -71,13 +110,49 @@ ggplot(weather_df, aes(x = tmin, y = tmax, color = name)) +
   geom_smooth(se = FALSE) + 
   facet_grid(. ~ name)
 ```
+`se = FALSE` = removing the confidence intervals
+`alpha = .5` = sets transparency
 
 ```{r}
 ggplot(weather_df, aes(x = date, y = tmax, color = name)) + 
   geom_point(aes(size = prcp), alpha = .5) +
   geom_smooth(se = FALSE) + 
+  facet_grid(. ~ name) #defines column variable
+
+ggplot(weather_df, aes(x = date, y = tmax, color = name)) + 
+  geom_point(aes(size = prcp), alpha = .5) +
+  geom_smooth(se = FALSE) + 
+  facet_grid(name ~ .) #defines row variable
+
+ggplot(weather_df, aes(x = date, y = tmax, color = name)) + 
+  geom_point(aes(size = prcp), alpha = .3) +
+  geom_smooth(se = FALSE) + 
   facet_grid(. ~ name)
 ```
+`color =` = color gradiation
+`size =` = size of each point differs 
+- using size is useful when it is difficult to distinguish the different color points on the graph
+
+Rotating axis
+```{r}
+ggplot(weather_df, aes(x = date, y = tmax, color = name)) + 
+  geom_point(aes(size = prcp), alpha = .3) +
+  geom_smooth(se = FALSE) + 
+  facet_grid(. ~ name) +
+  theme(axis.text.x = element_text (angle = 90, vjust = 0.5, hjust = 1))
+```
+
+#Graphs
+Histogram = use fill instead of color 
+- color just outlines the bars
+```{r}
+weather_df %>% 
+  ggplot(aes(x = date, y = tmax, fill = name)) + 
+  geom_histogram() +
+  facet_grid(. ~ name)
+```
+use `facet_grid` to make it easier to visualize each bar in the graph
+- without it, the graphs lay on top of one another and may be difficult to interpret
 
 Write a code chain that starts with `weather_df`; focuses only on Central Park, converts temperatures to Fahrenheit, makes a scatterplot of min vs. max temperature, and overlays a linear regression line (using options in `geom_smooth())`.
 ```{r}
@@ -148,15 +223,24 @@ ggplot(weather_df, aes(x = prcp)) +
 
 Next a ridge plot:
 ```{r}
-ggplot(weather_df, aes(x = prcp, y = name)) + 
+weather_df %>% 
+ggplot(aes(x = tmax, y = name)) + 
   geom_density_ridges(scale = .85)
 ```
+when you have more than 5 plots, boxplots, ridge plots, and violin plots are more interpretable
 
 
 Last a boxplot:
 ```{r}
 ggplot(weather_df, aes(y = prcp, x = name)) + 
   geom_boxplot() 
+```
+
+Violin plots - useful when comparing a large number of plots (>10)
+```{r}
+weather_df %>% 
+ggplot(aes(x = name, y = tmax, fill = name)) + 
+  geom_violin()
 ```
 
 ```{r}
@@ -166,6 +250,13 @@ weather_plot = ggplot(weather_df, aes(x = tmin, y = tmax)) +
 ggsave("weather_plot.pdf", weather_plot, width = 8, height = 5)
 ```
 
+Used to adjust how the figures are printed when `knit`
+```{r, fig.width = 10}
+weather_scatterplot()
+```
+
+
+Set these options instead of definingin in each `{r}` inline
 ```{r}
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -178,23 +269,6 @@ knitr::opts_chunk$set(
 ggplot(weather_df, aes(x = tmin, y = tmax)) + 
   geom_point(aes(color = name))
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
