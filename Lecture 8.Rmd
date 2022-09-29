@@ -9,22 +9,23 @@ library(tidyverse)
 library(ggridges)
 ```
 
+#rnoaa = user package
 ```{r}
 weather_df = 
   rnoaa::meteo_pull_monitors(
-    c("USW00094728", "USC00519397", "USS0023B17S"),
+    c("USW00094728", "USC00519397", "USS0023B17S"), #download these specific channels
     var = c("PRCP", "TMIN", "TMAX"), 
     date_min = "2017-01-01",
-    date_max = "2017-12-31") %>%
+    date_max = "2017-12-31") %>% #time range you want data for
   mutate(
     name = recode(
       id, 
-      USW00094728 = "CentralPark_NY", 
+      USW00094728 = "CentralPark_NY", #renmaing each station ID 
       USC00519397 = "Waikiki_HA",
       USS0023B17S = "Waterhole_WA"),
     tmin = tmin / 10,
-    tmax = tmax / 10) %>%
-  select(name, id, everything())
+    tmax = tmax / 10) %>% #tenths of a degree celsius - divded by 10 to get whole number
+  select(name, id, everything()) #want name and id to be listed first and everything else after
 
 weather_df
 ```
