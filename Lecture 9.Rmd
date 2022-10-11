@@ -1,0 +1,192 @@
+---
+title: "Lecture 9"
+output: github_document
+date: "2022-10-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+Conduct exploratory analyses using `dplyr` verbs (`group_by` and `summarize`), along with numeric data summaries.
+
+# Example
+We’ll continue in the same Git repo / R project that we used for visualization, and use essentially the same `weather_df` dataset – the only exception is the addition of `month` variable, created using `lubridate::floor_date()`.
+
+```{r}
+weather_df =  
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USC00519397", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USC00519397 = "Waikiki_HA",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10,
+    month = lubridate::floor_date(date, unit = "month")) %>%
+  select(name, id, everything())
+```
+
+## `group_by`
+
+Datasets are often comprised of groups defined by one or more (categorical) variable; `group_by()` makes these groupings explicit so that they can be included in subsequent operations. For example, we might group `weather_df` by `name` and `month`:
+```{r}
+weather_df %>%
+  group_by(name, month)
+```
+Output: `Groups:   name, month [36]`
+- 36 distinct groups: 12 groups for 3 names
+
+Not changing the dataset in anyway
+
+Several important functions respect grouping structures. You will frequently use summarize to create one-number summaries within each group, or use mutate to define variables within groups. The rest of this example shows these functions in action.
+
+Because these (and other) functions will use grouping information if it exists, it is sometimes necessary to remove groups using `ungroup()`.
+
+
+
+## *Counting things*
+As an intro to `summarize`, let’s count the number of observations in each month in the complete `weather_df` dataset.
+```{r}
+weather_df %>%
+  group_by(month) %>%
+  summarize(n_obs = n())
+```
+For each month, how many observations is the output
+
+
+```{r}
+weather_df %>% 
+  group_by(name) %>% 
+  summarize(
+    n_obs = n()
+  )
+```
+`n()` = will count how many observations within each variable identified in `group_by()`
+
+The output states that there are 3 groups and how many observations are in each group
+- CentralPark_NY = 365
+- Waikiki_HA = 365
+- Waterhole_WA = 365
+
+
+We can group by more than one variable, too.
+```{r}
+weather_df %>%
+  group_by(name, month) %>%
+  summarize(n_obs = n())
+```
+Will output the number of observation for each month of each group
+- there will be 36 rows: 12 months for 3 groups
+
+# `Count()`
+
+```{r}
+weather_df %>% 
+  count(name)
+```
+Will do the same thing as `summarize(n_obs = n())`
+
+Don't use `table()`!
+```{r}
+weather_df %>% 
+  pull(month)
+```
+`pull()` similar to `$` - trying to pull a single variable or column from dataframe
+
+```{r}
+weather_df %>% 
+  group_by(month) %>% 
+  summarize(
+    n_obs = n(),
+    n_dist = n_distinct(month),
+    n_dates = n_distinct(date)
+  )
+```
+`n_distinct()` = count the number of unique values in a dataset
+
+# 2X2 tables
+```{r}
+weather_df %>% 
+  mutate(
+    cold = case_when(
+      tmax <  5 ~ "cold",
+      tmax >= 5 ~ "not_cold",
+      TRUE      ~ ""
+  )) %>% 
+  filter(name != "Waikiki_HA") %>% 
+  janitor::tabyl(name, cold)
+```
+`janitor::tabyl` = creates 2X2 table
+
+`case_when()`
+- `TRUE      ~ ""` = included anything past the second line, making sure that there are no false left - any leftover values is labeled "" (can also use "THIS IS A PROBLEM" or something that helps flag the observations that do not satisfy the two prior logic statements)
+
+## General Summaries
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  summarize(
+    n_obs = n(),
+    mean_tmax = mean(tmax, na.rm = TRUE),
+    sd_prcp = sd(prcp),
+    median_tmax = median(tmax)
+  )
+```
+`mean_tmax = mean(tmax)` = creating a variable that represents the mean of variable `t_max`
+`sd()` = standard deviation
+`na.rm = TRUE` = remove N/A when computing
+`median()` = median
+
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  summarize(across(prcp:tmin, mean))
+```
+`across(prcp:tmin,mean)` = taking the mean of all the variables from prcp to tmin
+`across()` = applying functions across multiple columns
+
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE)
+  ) %>% 
+  ggplot(aes(x=month, y=mean_tmax, color = name))+
+  geom_point()+
+  geom_path()
+```
+`geom_path()` = connects the observations in the ggplot
+
+```{r}
+weather_df %>% 
+  group_by(name, month) %>% 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE)
+  ) %>% 
+  pivot_wider(
+    names_from = name,
+    values_from = mean_tmax
+  ) %>% 
+  knitr::kable(digits = 2)
+```
+`pivot_wider()` = usually means the table is being "untidied"
+- however, may be easier to interpret
+
+`knitr::kable()` = Rmarkdown's table
+- make a neater table to print in Rmarkdown
+- nice format for table
+
+lagged observations
+Offsets, especially lags, are used to compare an observation to it’s previous value. This is useful, for example, to find the day-by-day change in max temperature within each station over the year.
+
+`min_rank()` = ranking functions
